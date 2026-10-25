@@ -1,67 +1,57 @@
 # CoSpell-EN
 
-Source code for constructing and analysing English spelling-variation records across **nouns, verbs, adjectives and adverbs**.
+Code accompanying the English spelling-variation resource covering **nouns, verbs, adjectives and adverbs**, with historical frequency trajectories spanning **1800–2022**.
 
-This repository contains the **25 October 2026 source snapshot**. [CoSpell-EN_source_20261025.zip](CoSpell-EN_source_20261025.zip) contains 51 distinct source modules selected for the scientific workflow. Identical modules shared by the four branches are stored once. The supplied layout manifest restores them to 86 original module locations. Historical launch scripts, experiment notebooks, duplicated plots and standalone Qwen-review runners are omitted. [source_manifest.json](source_manifest.json) records each published file's SHA-256 digest and its corresponding source digest. [SHA256SUMS.txt](SHA256SUMS.txt) identifies the archive.
+## Start here
 
-## Scope and current sentence-acceptance procedure
+Browse the source by its role in the study. Identical modules shared by the four parts of speech are stored once. Names describe what each file does, without server experiment dates or numbered development prefixes.
 
-The code covers lexical organisation, WordNet membership, candidate generation and filtering, Google Books Ngram Corpus (GBNC) retrieval and frequency processing, C4/EN sentence collection, sentence-pair validation, and plotting. The noun, verb, adjective and adverb branches share a single-target-position constraint. The directory names retain the lengths and dates used in the source project and do not restrict the dataset to adverbs.
+| Stage | Source | Purpose |
+|---|---|---|
+| 1. Lexical and candidate construction | [construction/](construction/README.md) | WordNet membership, candidate proposals and record organisation |
+| 2. Context collection | [collection/](collection/README.md) | C4 sentence retrieval and source tracking |
+| 3. Model screening | [screening/](screening/README.md) | Grammatical error correction (GEC) and real-word spelling error (RWSE) screening |
+| 4. Record validation | [validation/](validation/README.md) | Acceptance policies and single-position substitution checks |
+| 5. Frequency analysis | [analysis/](analysis/README.md) | Historical trajectories and corpus-agreement plots |
+| Shared execution support | [runtime/](runtime/README.md) | Inference services, caching and GPU coordination |
 
-The current sentence procedure distinguishes two routes:
+Part-of-speech suffixes appear only where the original implementations differ. Length-dependent candidate rules are part of the method, not the top-level repository organisation.
 
-1. **Natural pairs and correct-sentence seeds.** CoEdIT performs grammatical error correction (GEC). A natural pair must yield exactly the expected correction, and its corrected sentence must remain unchanged when checked again. Comparison normalises whitespace only. Correct-sentence seeds must remain unchanged. BERT then screens supported positions outside the target for residual real-word spelling errors (RWSE), rejecting a candidate when an alternative reaches at least ten times the observed word's contextual probability.
-2. **Constructed pairs.** A retained variant replaces one target position in an accepted correct-sentence seed. The admission code verifies the registered seed, its acceptance evidence, the precise substitution and preserved surrounding characters. It does **not** rerun GEC or RWSE on the injected sentence.
+## Check the release
 
-New model-screened records use `gec_rwse_without_qwen_20261022`. Qwen independent proofreading is disabled for these records. Historical validation branches remain in the snapshot because existing records can retain older acceptance evidence. Their presence does not mean that new records undergo Qwen review. Constructed records use `verified_root_direct_substitution_20261019` and retain their seed's validation history.
-
-The one-position constraint permits a character edit distance greater than one. Model screening has finite coverage and does not independently certify contextual part of speech or the absence of every linguistic error. The resulting materials are a silver standard, not human-confirmed gold labels.
-
-## Code map
-
-Paths below are relative to the extracted `Vocabulary/` directory.
-
-| Component | Location |
-|---|---|
-| Noun record organisation | `LongWord/NOUN/organized_nouns_wordnet_20261018/` |
-| Noun sentence pipeline | `LongWord/NOUN/parallel_corpus_streaming_20261019/` |
-| Adverb record organisation | `LongWord/ADV/organized_adv_wordnet_20261011/` |
-| Adverb sentence pipeline | `LongWord/ADV/parallel_corpus_streaming_20261014/` |
-| Adjective candidates and GBNC retrieval | `ShortWord/ADJ/run_short_adjectives.py` |
-| Adjective sentence pipeline | `ShortWord/ADJ/parallel_corpus_streaming_20261015/` |
-| Verb records and sentence pipeline | `ShortWord/VERB/organized_verbs_wordnet_20261015/` and `ShortWord/VERB/parallel_corpus_streaming_20261015/` |
-| Verb WordNet and inflection filtering | `LongWord/VERB/verb_difference_wordnet_iv_20261011_01/` and `LongWord/VERB/verb_inflections_spacy_20261011_01/` |
-| C4 collection support | `collect_sources.py`, `c4_gate_collector.py` and shared collection modules in each sentence branch |
-| Shared inference implementation | `.shared_model_runtime_20261019/` |
-| Candidate-generation prompt | `DataAnalysis/20250612LLMsCommonMisspellings.py` |
-| Cross-corpus frequency analysis | `LongWord/ADV/10-plot_C4_GBNC.py` |
-
-Within each sentence pipeline, start by reading `review_policy.py`, `synthetic_admission.py`, `run_gec.py`, `run_rwse.py` and `validate_expansion.py`. Collection is implemented in `collect_sources.py` and its included support modules. Server launchers are not part of this selected release.
-
-## Environment and inputs
-
-These are research scripts from a Linux/CUDA workflow, supplied as a source snapshot rather than a self-contained executable dataset release. They require the corresponding lexical inputs, C4 shards, GBNC records, confusion sets, model checkpoints and processing manifests. These resources are not bundled in this code repository.
-
-The GEC scripts specify `grammarly/coedit-large` revision `5637bcdf9d8d4419f97c8cfea36f7d35c79232b6`. The RWSE scripts specify `google-bert/bert-base-cased` revision `cd5ef92a9fb2f889e972770a36d4ed042daf221e`. GEC uses greedy decoding, a 256-token input limit and a 320-token generation limit. See the scripts for the exact prompt and rejection conditions. Candidate-generation scripts have their own model configurations and must not be confused with the sentence-screening configuration.
-
-[requirements-source.txt](requirements-source.txt) lists imported third-party Python packages. It is a dependency inventory, not a verified version lock. GPU inference and large-scale collection have not been rerun as part of packaging this snapshot.
-
-Before running a stage:
-
-1. Restore the branch layout with `python materialize_source.py --output workdir`. This copies identical shared modules into their original locations without changing their contents. The output directory must not already exist.
-2. Supply the source datasets and checkpoints under their respective providers' access conditions.
-3. Configure the script's input/output locations. Workstation-specific home paths have been replaced by `/path/to/cospell`, `/path/to/cospell-home` or `/path/to/local` placeholders.
-4. Configure experiment manifests and shared inference settings for the local environment. The original scheduler checks paths, user IDs and file fingerprints. Server-specific runtime configurations and historical state are intentionally excluded. The collection and inference stages therefore require local configuration before execution.
-5. Run the applicable collection, GEC/RWSE screening or seed-based construction, and validation stages in that order using prepared inputs for the selected branch. Preserve acceptance policies and source provenance in any resulting release.
-
-To verify the distributed archive and Python syntax without running the research pipeline:
+The following commands require Python 3.10 or later and no third-party packages. They do not download data or execute model inference.
 
 ```bash
-python verify_source.py
+python prepare_workspace.py --check
+python prepare_workspace.py --list
+python -m unittest discover -s tests -v
 ```
 
-## Data availability
+To prepare the source layout for one part of speech, or for all four:
 
-This is a **code release**. It does not contain the full CoSpell-EN dataset, original C4 text, downloaded GBNC records, model weights, model-output caches or a data DOI. A dataset deposit must identify its own files, release version and provenance. Code availability alone should not be cited as public availability of the complete dataset.
+```bash
+python prepare_workspace.py --profile noun --output workspaces/noun
+python prepare_workspace.py --profile all --output workspaces/all
+```
 
-External data, models and libraries remain subject to their respective terms. No additional software licence is asserted in this snapshot.
+Choose a new output directory for each command. The tool verifies source checksums and restores the original import and relative-path layout according to [config/profiles.json](config/profiles.json). **It prepares source files, not a completed dataset or a ready-to-run production environment.** Read the [reproduction guide](docs/reproduction.md) for required inputs, model versions and execution prerequisites.
+
+## Sentence acceptance
+
+Natural pairs and correct-sentence seeds undergo GEC and RWSE screening. GEC must produce precisely the expected correction and leave the corrected sentence unchanged. Comparison normalises whitespace only. RWSE checks supported positions outside the target and rejects a candidate when an alternative reaches at least ten times the observed word's contextual probability.
+
+Constructed pairs replace one target position in a screened correct-sentence seed. Validation checks seed registration, acceptance evidence, exact substitution and preservation of the surrounding characters. The current code does not rerun GEC or RWSE on the injected sentence. New records do not undergo Qwen independent proofreading. Historical policy branches remain available to interpret previously accepted records.
+
+The single-position constraint applies to all four parts of speech and permits more than one character edit within the target word. Model-screened records are a silver standard. See the [method-to-code guide](docs/method_to_code.md) for the relevant implementations.
+
+## Release provenance
+
+This reader-oriented layout contains **51 distinct scientific source modules**, representing **86 original module locations**. Their contents are unchanged from the [initial source snapshot](https://github.com/Computational-social-science/CoSpell-EN/tree/2e031bdf4c874f52c9962e0fa870f5d1b3164693). The original snapshot remains available in Git history. See [source provenance](docs/source_provenance.md) and the [change log](CHANGELOG.md).
+
+Verification covers checksums, Python syntax, branch mappings and safe workspace preparation. Full GPU inference and corpus construction have not been rerun for this packaging revision.
+
+## Data and dependencies
+
+This repository publishes code. The full CoSpell-EN dataset, C4 text, downloaded GBNC records, checkpoints, model-output caches and production state are not included. No dataset DOI is currently provided here.
+
+[requirements.txt](requirements.txt) lists imported third-party packages. It is a dependency inventory, not a validated environment lock. External datasets, models and libraries retain their own terms. No additional software licence is asserted in this release.
