@@ -1,0 +1,18 @@
+# Imported packages only. This is not a tested or pinned environment lock.
+torch
+transformers
+accelerate
+nltk
+spacy
+lemminflect
+requests
+numpy
+pandas
+scipy
+matplotlib
+seaborn
+SciencePlots
+orjson
+ijson
+pyahocorasick
+langid
